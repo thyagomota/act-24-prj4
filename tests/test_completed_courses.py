@@ -87,6 +87,7 @@ def test_student_with_no_completed_courses_sees_empty_message(client):
     assert response.status_code == 200
     assert b"No completed courses recorded." in response.data
     assert b"class=\"empty-state\"" in response.data
+    assert b"No GPA available." in response.data
 
 
 def test_completed_courses_are_scoped_to_authenticated_student(client):
@@ -202,3 +203,20 @@ def test_gpa_is_credit_weighted_and_updated(app, client):
     with app.app_context():
         student = Student.query.filter_by(student_id="S100").one()
         assert student.gpa == 3.5
+
+
+def test_completed_courses_page_displays_gpa_with_two_decimal_places(client):
+    register_and_log_in(client)
+    assert add_course(client, credit_hours="3", letter_grade="A").status_code == 302
+    assert add_course(
+        client,
+        course_identifier="CS102",
+        course_name="Data Structures",
+        credit_hours="1",
+        letter_grade="C",
+    ).status_code == 302
+
+    response = client.get("/completed-courses")
+
+    assert response.status_code == 200
+    assert b"3.50" in response.data
