@@ -21,7 +21,7 @@
       <div class="table-wrapper">
         <table>
           <thead>
-            <tr><th>Course identifier</th><th>Course name</th><th>Credit hours</th><th>Earned letter grade</th><th>Edit grade</th></tr>
+            <tr><th>Course identifier</th><th>Course name</th><th>Credit hours</th><th>Earned letter grade</th><th>Edit grade</th><th>Delete</th></tr>
           </thead>
           <tbody>
             {% for course in courses %}
@@ -42,6 +42,9 @@
                     </div>
                     <button class="btn btn-secondary btn-small" type="submit">Update Grade</button>
                   </form>
+                </td>
+                <td>
+                  <a class="btn btn-danger btn-small" href="{{ url_for('main.delete_course', course_id=course.id) }}">Delete</a>
                 </td>
               </tr>
             {% endfor %}
