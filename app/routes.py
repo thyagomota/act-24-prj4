@@ -31,7 +31,12 @@ def index():
     courses = Course.query.filter_by(student_id=student.id).order_by(
         Course.course_identifier
     ).all()
-    return render_template("index.html", student=student, courses=courses)
+    return render_template(
+        "index.html",
+        student=student,
+        courses=courses,
+        gpa=calculate_gpa(courses),
+    )
 
 
 @bp.route("/courses", methods=["GET", "POST"])
@@ -43,14 +48,22 @@ def courses():
         error = add_completed_course(student)
         if error:
             flash(error, "error")
+            courses = get_student_courses(student)
             return render_template(
-                "courses.html", student=student, courses=get_student_courses(student)
+                "courses.html",
+                student=student,
+                courses=courses,
+                gpa=calculate_gpa(courses),
             ), 400
         flash("Course added successfully.", "success")
         return redirect(url_for("main.courses"))
 
+    courses = get_student_courses(student)
     return render_template(
-        "courses.html", student=student, courses=get_student_courses(student)
+        "courses.html",
+        student=student,
+        courses=courses,
+        gpa=calculate_gpa(courses),
     )
 
 
@@ -62,8 +75,12 @@ def add_course():
     error = add_completed_course(student)
     if error:
         flash(error, "error")
+        courses = get_student_courses(student)
         return render_template(
-            "courses.html", student=student, courses=get_student_courses(student)
+            "courses.html",
+            student=student,
+            courses=courses,
+            gpa=calculate_gpa(courses),
         ), 400
     flash("Course added successfully.", "success")
     return redirect(url_for("main.courses"))
@@ -163,6 +180,19 @@ def get_student_courses(student):
     ).all()
 
 
+def calculate_gpa(courses):
+    """Calculate the credit-hour-weighted GPA for a course list."""
+    grade_points = {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0, "F": 0.0}
+    total_credits = sum(course.credit_hours for course in courses)
+    if total_credits == 0:
+        return None
+    weighted_points = sum(
+        course.credit_hours * grade_points[course.letter_grade]
+        for course in courses
+    )
+    return round(weighted_points / total_credits, 2)
+
+
 def validate_completed_course(course_identifier, course_name, credit_hours,
                               letter_grade):
     """Validate completed-course fields and return an error message, if any."""
@@ -177,17 +207,8 @@ def validate_completed_course(course_identifier, course_name, credit_hours,
 
 def recalculate_gpa(student):
     """Recalculate and update a student's credit-weighted GPA."""
-    grade_points = {"A": 4.0, "B": 3.0, "C": 2.0, "D": 1.0, "F": 0.0}
     courses = get_student_courses(student)
-    total_credits = sum(course.credit_hours for course in courses)
-    if total_credits == 0:
-        student.gpa = 0.0
-        return
-    weighted_points = sum(
-        course.credit_hours * grade_points[course.letter_grade]
-        for course in courses
-    )
-    student.gpa = round(weighted_points / total_credits, 2)
+    student.gpa = calculate_gpa(courses) or 0.0
 
 
 def add_completed_course(student):
