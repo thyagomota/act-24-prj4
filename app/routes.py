@@ -124,6 +124,8 @@ def login():
             or Student.query.filter_by(student_id=identifier).first()
         )
         if student is None or not student.check_password(password):
+            session.pop("student_id", None)
+            session.pop("user_id", None)
             flash("Invalid email/student ID or password.", "error")
             return render_template("login.html"), 401
 

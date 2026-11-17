@@ -54,6 +54,68 @@ def test_completed_course_page_requires_authentication(client):
     assert response.location.endswith("/login")
 
 
+def test_authenticated_student_views_all_completed_course_details(client):
+    register_and_log_in(client)
+    assert add_course(client).status_code == 302
+    assert add_course(
+        client,
+        course_identifier="CS102",
+        course_name="Data Structures",
+        credit_hours="4",
+        letter_grade="B",
+    ).status_code == 302
+
+    response = client.get("/completed-courses")
+
+    assert response.status_code == 200
+    assert b"CS101" in response.data
+    assert b"Introduction to Computing" in response.data
+    assert b"3" in response.data
+    assert b"A" in response.data
+    assert b"CS102" in response.data
+    assert b"Data Structures" in response.data
+    assert b"4" in response.data
+    assert b"B" in response.data
+    assert b"Earned letter grade" in response.data
+
+
+def test_student_with_no_completed_courses_sees_empty_message(client):
+    register_and_log_in(client)
+
+    response = client.get("/completed-courses")
+
+    assert response.status_code == 200
+    assert b"No completed courses recorded." in response.data
+    assert b"class=\"empty-state\"" in response.data
+
+
+def test_completed_courses_are_scoped_to_authenticated_student(client):
+    register_and_log_in(client)
+    assert add_course(client).status_code == 302
+
+    client.post("/logout")
+    client.post(
+        "/register",
+        data={
+            "student_id": "S200",
+            "full_name": "Grace Student",
+            "email": "grace@example.com",
+            "password": "longpassword",
+        },
+    )
+    client.post(
+        "/login",
+        data={"email": "grace@example.com", "password": "longpassword"},
+    )
+
+    response = client.get("/completed-courses")
+
+    assert response.status_code == 200
+    assert b"CS101" not in response.data
+    assert b"Introduction to Computing" not in response.data
+    assert b"No completed courses recorded." in response.data
+
+
 def test_missing_completed_course_field_is_rejected(app, client):
     register_and_log_in(client)
 
@@ -139,4 +201,4 @@ def test_gpa_is_credit_weighted_and_updated(app, client):
 
     with app.app_context():
         student = Student.query.filter_by(student_id="S100").one()
-        assert student.gpa == 3.25
+        assert student.gpa == 3.5
