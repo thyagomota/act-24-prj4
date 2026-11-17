@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Completed Course{% endblock %}
+
+{% block content %}
+  <section class="card card-narrow">
+    <h1>Delete Completed Course</h1>
+    <p>Are you sure you want to permanently delete {{ course.course_identifier }} - {{ course.course_name }}?</p>
+    <div class="actions">
+      <form method="post" action="{{ url_for('main.delete_course', course_id=course.id) }}" class="inline-form">
+        <button class="btn btn-danger" type="submit" name="confirm" value="yes">Confirm Delete</button>
+      </form>
+      <form method="post" action="{{ url_for('main.delete_course', course_id=course.id) }}" class="inline-form">
+        <button class="btn btn-secondary" type="submit" name="cancel" value="yes">Cancel</button>
+      </form>
+    </div>
+  </section>
+{% endblock %}

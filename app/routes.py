@@ -135,6 +135,57 @@ def update_course_grade(course_id):
     return redirect(url_for("main.courses"))
 
 
+@bp.route("/courses/<int:course_id>/delete", methods=["GET", "POST"])
+@bp.route("/completed-courses/<int:course_id>/delete", methods=["GET", "POST"])
+@bp.route("/courses/<int:course_id>/delete/confirm", methods=["POST"])
+@bp.route("/courses/<int:course_id>/delete-confirm", methods=["POST"])
+@bp.route("/courses/<int:course_id>/confirm-delete", methods=["POST"])
+@bp.route("/completed-courses/<int:course_id>/confirm-delete", methods=["POST"])
+@login_required
+def delete_course(course_id):
+    """Ask for confirmation, then delete an owned completed course."""
+    student = Student.query.get(session["user_id"])
+    course = get_owned_course(student, course_id)
+    if course is None:
+        flash("Completed course not found.", "error")
+        return render_template(
+            "courses.html",
+            student=student,
+            courses=get_student_courses(student),
+            gpa=calculate_gpa(get_student_courses(student)),
+        ), 404
+
+    if request.method == "GET":
+        return render_template("delete_course.html", course=course)
+
+    if deletion_was_cancelled(request):
+        flash("Course deletion cancelled.", "info")
+        return redirect(url_for("main.courses"))
+
+    if not deletion_was_confirmed(request):
+        flash("Please confirm or cancel the course deletion.", "warning")
+        return render_template("delete_course.html", course=course), 400
+
+    db.session.delete(course)
+    db.session.flush()
+    recalculate_gpa(student)
+    db.session.commit()
+    flash("Course deleted successfully.", "success")
+    return redirect(url_for("main.courses"))
+
+
+@bp.route("/courses/<int:course_id>/delete/cancel", methods=["POST"])
+@login_required
+def cancel_course_delete(course_id):
+    """Cancel deletion without changing the student's courses."""
+    student = Student.query.get(session["user_id"])
+    if get_owned_course(student, course_id) is None:
+        flash("Completed course not found.", "error")
+        return redirect(url_for("main.courses")), 404
+    flash("Course deletion cancelled.", "info")
+    return redirect(url_for("main.courses"))
+
+
 @bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -227,6 +278,42 @@ def get_student_courses(student):
     return Course.query.filter_by(student_id=student.id).order_by(
         Course.course_identifier
     ).all()
+
+
+def get_owned_course(student, course_id):
+    """Return a course only when it belongs to the given student."""
+    return Course.query.filter_by(
+        id=course_id,
+        student_id=student.id,
+    ).first()
+
+
+def deletion_was_cancelled(request):
+    """Return whether a deletion form represents a cancellation."""
+    if "cancel" in request.form:
+        return True
+    for field in ("confirm", "confirmed"):
+        if field in request.form:
+            value = request.form.get(field, "").strip().lower()
+            if value in {"no", "false", "0", "cancel"}:
+                return True
+    action = (
+        request.form.get("action")
+        or ""
+    ).strip().lower()
+    return action in {"cancel", "cancelled", "no", "false", "0"}
+
+
+def deletion_was_confirmed(request):
+    """Return whether a deletion form explicitly confirms deletion."""
+    if "confirm" in request.form:
+        value = request.form.get("confirm", "").strip().lower()
+        return value in {"yes", "true", "1", "confirm", "on", "delete"}
+    if "confirmed" in request.form:
+        value = request.form.get("confirmed", "").strip().lower()
+        return value in {"yes", "true", "1", "confirm", "on", "delete"}
+    action = request.form.get("action", "").strip().lower()
+    return action in {"delete", "confirm", "yes", "true", "1"}
 
 
 def calculate_gpa(courses):
