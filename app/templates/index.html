@@ -21,7 +21,7 @@
       <div class="table-wrapper">
         <table>
           <thead>
-            <tr><th>Course identifier</th><th>Course name</th><th>Credit hours</th><th>Earned letter grade</th></tr>
+            <tr><th>Course identifier</th><th>Course name</th><th>Credit hours</th><th>Earned letter grade</th><th>Edit grade</th></tr>
           </thead>
           <tbody>
             {% for course in courses %}
@@ -30,6 +30,19 @@
                 <td>{{ course.course_name }}</td>
                 <td>{{ course.credit_hours }}</td>
                 <td><span class="grade">{{ course.letter_grade }}</span></td>
+                <td>
+                  <form class="inline-form" method="post" action="{{ url_for('main.update_course_grade', course_id=course.id) }}">
+                    <div class="form-group">
+                      <label class="visually-hidden" for="grade-home-{{ course.id }}">Update grade for {{ course.course_identifier }}</label>
+                      <select id="grade-home-{{ course.id }}" name="letter_grade" required>
+                        {% for grade in ["A", "B", "C", "D", "F"] %}
+                          <option value="{{ grade }}" {% if course.letter_grade == grade %}selected{% endif %}>{{ grade }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <button class="btn btn-secondary btn-small" type="submit">Update Grade</button>
+                  </form>
+                </td>
               </tr>
             {% endfor %}
           </tbody>

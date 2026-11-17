@@ -86,6 +86,55 @@ def add_course():
     return redirect(url_for("main.courses"))
 
 
+@bp.route("/courses/<int:course_id>/grade", methods=["POST"])
+@bp.route("/courses/<int:course_id>/update-grade", methods=["POST"])
+@bp.route("/courses/<int:course_id>/update", methods=["POST"])
+@bp.route("/courses/<int:course_id>/edit-grade", methods=["POST"])
+@bp.route("/courses/<int:course_id>/edit", methods=["POST"])
+@bp.route("/completed-courses/<int:course_id>/grade", methods=["POST"])
+@login_required
+def update_course_grade(course_id):
+    """Update a grade for a course owned by the authenticated student."""
+    student = Student.query.get(session["user_id"])
+    course = Course.query.filter_by(
+        id=course_id,
+        student_id=student.id,
+    ).first()
+    if course is None:
+        flash("Completed course not found.", "error")
+        courses = get_student_courses(student)
+        return render_template(
+            "courses.html",
+            student=student,
+            courses=courses,
+            gpa=calculate_gpa(courses),
+        ), 404
+
+    letter_grade = (
+        request.form.get("letter_grade")
+        or request.form.get("grade")
+        or request.form.get("new_grade")
+        or ""
+    ).strip().upper()
+
+    error = validate_letter_grade(letter_grade)
+    if error:
+        flash(error, "error")
+        courses = get_student_courses(student)
+        return render_template(
+            "courses.html",
+            student=student,
+            courses=courses,
+            gpa=calculate_gpa(courses),
+        ), 400
+
+    course.letter_grade = letter_grade
+    recalculate_gpa(student)
+    db.session.commit()
+    flash("Course grade updated successfully.", "success")
+    return redirect(url_for("main.courses"))
+
+
 @bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -200,6 +249,14 @@ def validate_completed_course(course_identifier, course_name, credit_hours,
         return "All course fields are required."
     if not re.fullmatch(r"[1-9]\d*", str(credit_hours)):
         return "Credit hours must be a positive whole number."
+    grade_error = validate_letter_grade(letter_grade)
+    if grade_error:
+        return grade_error
+    return None
+
+
+def validate_letter_grade(letter_grade):
+    """Validate a letter grade and return an error message, if any."""
     if str(letter_grade).strip().upper() not in {"A", "B", "C", "D", "F"}:
         return "Letter grade must be one of A, B, C, D, or F."
     return None
