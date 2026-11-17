@@ -1,3 +1,4 @@
+from functools import wraps
 import re
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
@@ -11,7 +12,20 @@ bp = Blueprint("main", __name__)
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def login_required(view):
+    """Redirect visitors to login unless they have an authenticated session."""
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if session.get("user_id") is None:
+            flash("Please log in to access this page.", "warning")
+            return redirect(url_for("main.login"))
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
 @bp.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
@@ -80,6 +94,14 @@ def login():
         return redirect(url_for("main.index"))
 
     return render_template("login.html")
+
+
+@bp.route("/logout", methods=["POST"])
+def logout():
+    """End the current student's authenticated session."""
+    session.clear()
+    flash("You have been logged out.", "success")
+    return redirect(url_for("main.login"))
 
 
 def validate_registration(student_id, full_name, email, password):

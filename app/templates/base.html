@@ -11,8 +11,14 @@
       <div class="container">
         <a class="brand" href="{{ url_for('main.index') }}">Student Records</a>
         <nav class="site-nav">
-          <a href="{{ url_for('main.register') }}">Register</a>
-          <a href="{{ url_for('main.login') }}">Login</a>
+          {% if session.get("user_id") %}
+            <form method="post" action="{{ url_for('main.logout') }}" class="inline-form">
+              <button class="btn btn-secondary" type="submit">Log out</button>
+            </form>
+          {% else %}
+            <a href="{{ url_for('main.register') }}">Register</a>
+            <a href="{{ url_for('main.login') }}">Login</a>
+          {% endif %}
         </nav>
       </div>
     </header>
